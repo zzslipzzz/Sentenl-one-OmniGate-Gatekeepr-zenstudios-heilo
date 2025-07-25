@@ -1,0 +1,35 @@
+#!/bin/bash
+
+OmniGate Master Core System - Sentinel One Terminal Integration
+
+Pixel 9a | Termux 0.118.3 | Rooted | Biometric Security Enforced
+
+⚠️ Full System Trustchain Execution Block
+
+set -e
+
+=== 0. PRE-INIT HARDENING ===
+
+echo "[+] Initializing secure environment..." cd ~ && mkdir -p OmniGate/.vault chmod 700 OmniGate/.vault
+
+=== 1. KEY VAULT LOADING ===
+
+echo "[+] Mounting primary encryption key..." export VAULT_KEY="$(cat ~/OmniGate/.vault/.KEY)" if [[ -z "$VAULT_KEY" ]]; then echo "[!] CRITICAL: Missing trust anchor key. Abort." exit 1 fi
+
+=== 2. TRUSTCHAIN & HASH BASELINE ===
+
+echo "[+] Verifying system trustchain integrity..." sha256sum /system/bin/sh /system/bin/init > ~/OmniGate/.vault/sys_integrity.sha256 chmod 600 ~/OmniGate/.vault/sys_integrity.sha256
+
+=== 3. SENTINEL AI DEPLOYMENT ===
+
+echo "[+] Deploying Sentinel One behavioral defense..." cat << 'EOF' > ~/OmniGate/sentinel_ai.py #!/usr/bin/env python3 import os, hashlib, subprocess
+
+def hash_check(): files = ['/system/bin/sh', '/system/bin/init'] for f in files: with open(f, 'rb') as fd: print(f"[HASH] {f}: {hashlib.sha256(fd.read()).hexdigest()}")
+
+def behavior_trace(): logs = subprocess.getoutput("logcat -d | grep suspicious") print("[TRACE] Suspicious logs:\n", logs)
+
+hash_check() behavior_trace() EOF chmod +x ~/OmniGate/sentinel_ai.py
+
+=== 4. MAGISK ROOT WATCHDOG ===
+
+echo "[+] Activating Magisk stealth bypass monitor..." cat << 'EOF' > ~/OmniGate/root_watch.sh #!/bin/bash if [[ -f /sbin/magisk || -f /data/adb/magisk || $(pgrep -f magisk) ]]; then echo "[!] Root/Magisk Detected! Locking shell." pkill -9 -u $(whoami) fi EOF chmod +x /Om
