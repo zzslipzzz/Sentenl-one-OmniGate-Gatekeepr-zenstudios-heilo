@@ -1,0 +1,105 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# OmniGate Sentinel GodMode Setup
+# Authorized by Joseph Thornton Jr | Pixel 9a | 863-462-2702
+
+set -e
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🛡️ SYSTEM HARDENING          ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Updating Termux & removing su/sudo"
+pkg update -y && pkg upgrade -y
+pkg uninstall tsu sudo -y || true
+command -v su && chmod 000 "$(command -v su)" || true
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🔐 CRYPTOGRAPHIC LOCKDOWN    ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Vault key enforcement"
+mkdir -p ~/.vault
+echo "SECURE-KEY-LOCKED" > ~/.vault/.KEY
+chmod 600 ~/.vault/.KEY
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  📦 PACKAGE SETUP             ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Installing build and net tools"
+pkg install -y openjdk-17 git wget curl zip unzip file nano
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🛠️ GRADLE + SDK TOOLS SETUP ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Installing Gradle 8.4"
+GRADLE_VER=8.4
+wget "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip" -O gradle.zip
+unzip -q gradle.zip -d $HOME && rm gradle.zip
+export GRADLE_HOME=$HOME/gradle-${GRADLE_VER}
+export PATH=$GRADLE_HOME/bin:$PATH
+
+echo "[*] Installing Android SDK tools"
+ANDROID_SDK_ROOT=$HOME/android-sdk
+mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+cd $ANDROID_SDK_ROOT/cmdline-tools
+CLI_TOOLS_ZIP="commandlinetools-linux-9477386_latest.zip"
+wget https://dl.google.com/android/repository/${CLI_TOOLS_ZIP} -O cmdline-tools.zip
+unzip -q cmdline-tools.zip && rm cmdline-tools.zip
+mkdir -p latest && mv cmdline-tools/* latest/ && rmdir cmdline-tools
+export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  👁️ SENTINEL THREAT SCANNER  ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Creating Magisk process scanner"
+cat <<'EOF' > ~/magisk-block.sh
+#!/data/data/com.termux/files/usr/bin/bash
+# Magisk threat exit handler (OmniGate)
+if [ -f /sbin/magisk ] || [ -f /data/adb/magisk ] || pgrep -f magisk || env | grep -i MAGISK; then
+  echo "[ALERT] Magisk Detected! Terminating session."
+  pkill -9 -u "$(whoami)"
+fi
+EOF
+
+chmod +x ~/magisk-block.sh
+grep -qxF '~/magisk-block.sh' ~/.bashrc || echo '~/magisk-block.sh' >> ~/.bashrc
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🧠 SENTINEL ONE INIT         ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Initializing Sentinel One AI config"
+mkdir -p ~/Sentinel
+cat <<EOF > ~/Sentinel/sentinel.env
+TRUSTED_IP=100.94.124.135
+TRUSTED_PHONE=8634622702
+SECURE_KEY=$(cat ~/.vault/.KEY)
+EOF
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🔒 CHECKSUM SNAPSHOT         ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Capturing baseline checksum of core binaries"
+sha256sum $(which bash) $(which curl) $(which wget) > ~/bin_checksums.sha256
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃  🔁 GODMODE AUTOSTART         ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Binding Sentinel Guard to bashrc"
+grep -qxF 'source ~/Sentinel/sentinel.env' ~/.bashrc || echo 'source ~/Sentinel/sentinel.env' >> ~/.bashrc
+grep -qxF '~/magisk-block.sh' ~/.bashrc || echo '~/magisk-block.sh' >> ~/.bashrc
+
+### ✅ COMPLETION
+
+echo ""
+echo "[✔] OmniGate Sentinel GodMode Activated."
+echo "   🔐 Vault bound: ~/.vault/.KEY"
+echo "   🧠 AI: ~/Sentinel/sentinel.env"
+echo "   🧱 Hardened + boot-linked"
