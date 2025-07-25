@@ -1,0 +1,141 @@
+import os
+import hashlib
+import socket
+import subprocess
+import logging
+from datetime import datetime
+import secrets # For more secure key generation
+
+# --- Configuration ---
+# Consider loading these from a secure configuration file or environment variables
+# For a top-grade solution, these would be managed by a Key Management System (KMS)
+# or securely stored in a hardware-backed keystore like Android Keystore.
+SECURE_KEY_LENGTH = 32  # Length for a randomly generated secure key
+TRUSTED_IP_ADDRESS = "100.94.124.135"
+TRUSTED_PHONE_NUMBER = "8634622702"
+LOG_FILE_PATH = os.path.expanduser("~/Sentinel/heilo.log")
+
+# --- Logger Setup ---
+logger = logging.getLogger("HEILO_Sentinel")
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler(LOG_FILE_PATH)
+formatter = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# --- Key Management Module (Simplified for illustration) ---
+class KeyManager:
+    def __init__(self, key_path):
+        self.key_path = key_path
+        self.secure_key = self._load_or_generate_key()
+
+    def _load_or_generate_key(self):
+        if os.path.exists(self.key_path):
+            with open(self.key_path, "rb") as f:
+                key = f.read()
+            logger.info("Secure key loaded from existing file.")
+            return key
+        else:
+            key = secrets.token_bytes(SECURE_KEY_LENGTH)
+            os.makedirs(os.path.dirname(self.key_path), exist_ok=True)
+            with open(self.key_path, "wb") as f:
+                f.write(key)
+            os.chmod(self.key_path, 0o600)  # Restrict permissions to owner
+            logger.warning("No secure key found. Generated a new one.")
+            return key
+
+    def get_key_hash(self):
+        return hashlib.sha256(self.secure_key).hexdigest()[:16]
+
+# --- Network Module ---
+class NetworkMonitor:
+    def get_local_ip(self):
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except socket.error:
+            logger.error("Could not retrieve local IP address.")
+            return "0.0.0.0"
+
+    def is_trusted_ip(self, trusted_ip):
+        return trusted_ip == self.get_local_ip()
+
+    def check_secure_communication(self):
+        # Placeholder for more advanced secure communication checks (e.g., certificate pinning)
+        # This would involve verifying server certificates against embedded or known pins.
+        # In a real-world scenario, this might involve using libraries that support certificate pinning
+        # and securely storing the pins themselves.
+        logger.info("Performing secure communication checks (conceptual).")
+        # Example of a basic check, though a real implementation would be more complex
+        if not self.is_trusted_ip(TRUSTED_IP_ADDRESS):
+            logger.warning("Untrusted IP detected during communication check.")
+            return False
+        return True
+
+# --- Threat Detection Module ---
+class ThreatDetector:
+    def detect_magisk(self):
+        checks = [
+            "/sbin/magisk",
+            "/data/adb/magisk",
+            "magisk" in subprocess.getoutput("ps -A"),
+            "MAGISK" in subprocess.getoutput("env")
+        ]
+        if any(checks):
+            logger.critical("Magisk threat detected via multiple checks.")
+            return True
+        return False
+
+    def detect_other_threats(self):
+        # Placeholder for more sophisticated threat detection techniques
+        # - App sandboxing analysis
+        # - System integrity verification (e.g., hash checks on critical system files)
+        # - Real-time process monitoring for suspicious activity
+        logger.info("Performing other threat detection checks (conceptual).")
+        return False
+
+    def detect_threats(self):
+        if self.detect_magisk():
+            return True
+        if self.detect_other_threats():
+            return True
+        return False
+
+# --- Core Sentinel ---
+class HEILOSentinel:
+    def __init__(self, key_manager, network_monitor, threat_detector):
+        self.key_manager = key_manager
+        self.network_monitor = network_monitor
+        self.threat_detector = threat_detector
+
+    def run_initial_checks(self):
+        logger.info("HEILO Sentinel startup check initiated.")
+        print("\n🔐 HEILO CORE STATUS")
+        print(f"Vault Key Hash : {self.key_manager.get_key_hash()}")
+        print(f"Trusted IP     : {TRUSTED_IP_ADDRESS} ({'✅' if self.network_monitor.is_trusted_ip(TRUSTED_IP_ADDRESS) else '❌'})")
+        print(f"Trusted Phone  : {TRUSTED_PHONE_NUMBER}")
+
+        if self.threat_detector.detect_threats():
+            logger.critical("🚨 Major threat detected — session terminated.")
+            print("🚨 Major threat detected — session terminated.")
+            os._exit(1) # More forceful exit than pkill in a scripted context
+        else:
+            logger.info("✅ All checks passed — Sentinel Guard ready.")
+            print("✅ All checks passed — Sentinel Guard ready.")
+
+    def run_continuous_monitoring(self):
+        logger.info("Starting continuous monitoring (conceptual).")
+        # In a real-world scenario, this would involve a continuous loop
+        # performing checks at regular intervals.
+        pass
+
+# --- Main Entry ---
+if __name__ == "__main__":
+    VAULT_KEY_PATH = os.path.expanduser("~/.vault/.KEY")
+    key_manager = KeyManager(VAULT_KEY_PATH)
+    network_monitor = NetworkMonitor()
+    threat_detector = ThreatDetector()
+
+    heilo_sentinel = HEILOSentinel(key_manager, network_monitor, threat_detector)
+    heilo_sentinel.run_initial_checks()
+    heilo_sentinel.run_continuous_monitoring()
+
