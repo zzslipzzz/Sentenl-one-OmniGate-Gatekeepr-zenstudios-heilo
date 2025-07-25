@@ -1,0 +1,52 @@
+#!/bin/bash
+
+=== OmniGate Sentinel Core Setup by Joseph Thornton Jr ===
+
+Full Terminal Hardening + Android Build Environment
+
+set -e  # Stop on error
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+
+┃ SYSTEM UPDATE & CLEAN ┃
+
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Updating Termux..." pkg update -y && pkg upgrade -y pkg uninstall -y tsu sudo || true
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+
+┃ ESSENTIAL PACKAGES    ┃
+
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Installing packages..." pkg install -y openjdk-17 git wget unzip curl zip file nano
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+
+┃ CRYPTO VAULT SETUP    ┃
+
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Initializing Vault..." mkdir -p ~/.vault echo "SECURE-KEY-LOCKED" > ~/.vault/.KEY chmod 600 ~/.vault/.KEY
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+
+┃ GRADLE INSTALL        ┃
+
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[*] Installing Gradle 8.4..." GRADLE_VER=8.4 wget https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip -O gradle.zip unzip -q gradle.zip -d $HOME && rm gradle.zip export GRADLE_HOME=$HOME/gradle-${GRADLE_VER} export PATH=$GRADLE_HOME/bin:$PATH
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓
+
+┃ ANDROID SDK TOOLS     ┃
+
+┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+echo "[] Installing Android SDK tools..." ANDROID_SDK_ROOT=$HOME/android-sdk mkdir -p $ANDROID_SDK_ROOT/cmdline-tools cd $ANDROID_SDK_ROOT/cmdline-tools CLI_ZIP=commandlinetools-linux-9477386_latest.zip wget https://dl.google.com/android/repository/$CLI_ZIP -O cmdline-tools.zip unzip -q cmdline-tools.zip && rm cmdline-tools.zip mkdir -p latest && mv cmdline-tools/ latest/ && rmdir cmdline-tools export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
+
+yes | sdkmanager --licenses sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+┏━━━━━━━━━━━━━━━━
+
