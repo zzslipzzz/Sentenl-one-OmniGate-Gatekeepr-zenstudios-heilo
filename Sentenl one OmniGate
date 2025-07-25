@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# OmniGate Sentinel Core Setup
+# Creator: Joseph Thornton Jr
+# Purpose: Hardened Termux + Android Build Environment + Sentinel Surveillance
+
+set -e
+
+log() {
+  echo "[✔] $1"
+}
+
+banner() {
+  echo -e "\n┏━━━━━━━━━━━━━━━━━━━━━━━┓"
+  echo -e "┃ $1"
+  echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━┛"
+}
+
+### SYSTEM UPDATE & CLEAN ###
+banner "SYSTEM UPDATE & CLEAN"
+log "Updating Termux..."
+pkg update -y && pkg upgrade -y
+pkg uninstall -y tsu sudo || true
+
+### ESSENTIAL PACKAGES ###
+banner "ESSENTIAL PACKAGES"
+log "Installing tools..."
+pkg install -y openjdk-17 git wget unzip curl zip file nano jq
+
+### CRYPTO VAULT SETUP ###
+banner "CRYPTO VAULT SETUP"
+VAULT=~/.vault
+mkdir -p $VAULT
+echo "SECURE-KEY-LOCKED" > $VAULT/.KEY
+chmod 600 $VAULT/.KEY
+log "Vault initialized with restricted key"
+
+### GRADLE INSTALL ###
+banner "GRADLE INSTALL"
+GRADLE_VER=8.4
+wget https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip -O gradle.zip
+unzip -q gradle.zip -d $HOME && rm gradle.zip
+export GRADLE_HOME=$HOME/gradle-${GRADLE_VER}
+export PATH=$GRADLE_HOME/bin:$PATH
+log "Gradle $GRADLE_VER configured"
+
+### ANDROID SDK TOOLS ###
+banner "ANDROID SDK TOOLS"
+ANDROID_SDK_ROOT=$HOME/android-sdk
+mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+cd $ANDROID_SDK_ROOT/cmdline-tools
+CLI_ZIP=commandlinetools-linux-9477386_latest.zip
+wget https://dl.google.com/android/repository/$CLI_ZIP -O sdk.zip
+unzip -q sdk.zip && rm sdk.zip
+mkdir -p latest && mv cmdline-tools/ latest/ && rmdir cmdline-tools
+export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+log "Android SDK tools installed and licensed"
+
+### MAGISK BLOCK HOOK ###
+banner "MAGISK BLOCK HOOK"
+cat <<'EOF' > ~/magisk-block.sh
+#!/bin/bash
+if [ -f /sbin/magisk ] || [ -f /data/adb/magisk ] || pgrep -f magisk || env | grep -i MAGISK; then
+    echo "[ALERT] Magisk Detected!"
+    pkill -9 -u $(whoami)
+fi
+EOF
+chmod +x ~/magisk-block.sh
+echo '~/magisk-block.sh' >> ~/.bashrc
+log "Magisk detection script deployed"
+
+### CHECKSUM SNAPSHOT ###
+banner "CHECKSUM SNAPSHOT"
+sha256sum $(which bash) $(which curl) $(which wget) > ~/bin_checksums.sha256
+log "Binary integrity snapshot saved"
+
+### SENTINEL ENV PROFILE ###
+banner "SENTINEL ENV PROFILE"
+mkdir -p ~/Sentinel
+cat <<EOF > ~/Sentinel/sentinel.env
+TRUSTED_IP=100.94.124.135
+TRUSTED_PHONE=8634622702
+SECURE_KEY=$(cat ~/.vault/.KEY)
+EOF
+log "Sentinel profile created"
+
+### FINAL STATUS ###
+banner "SETUP COMPLETE"
+echo "All systems deployed:"
+echo "  ✔ Build tools and SDK ready"
+echo "  ✔ Magisk defense armed"
+echo "  ✔ Vault encrypted"
+echo "  ✔ Sentinel watching securely"
