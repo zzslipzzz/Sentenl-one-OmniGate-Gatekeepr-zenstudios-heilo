@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+# sentinel_core.py
+# OmniGate Sentinel One – Root Enforcement & AI Response Kernel
+# Licensed to Joseph Thornton Jr – OmniGate Systems
+
+import os
+import hashlib
+import subprocess
+import json
+import time
+from pathlib import Path
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   SYSTEM CONSTANTS + PATHS   ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+VAULT_DIR = Path.home() / ".vault"
+KEY_FILE = VAULT_DIR / ".KEY"
+LOG_FILE = VAULT_DIR / "sentinel.log"
+TRUSTED_IP = "100.94.124.135"
+TRUSTED_NUMBER = "8634622702"
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   SECURE LOGGING + HASHING   ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def log_event(event: str):
+    LOG_FILE.parent.mkdir(exist_ok=True)
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as log:
+        log.write(f"[{timestamp}] {event}\n")
+
+def hash_file(file_path: str) -> str:
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        h.update(f.read())
+    return h.hexdigest()
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   ENCRYPTED VAULT CONTROL    ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def is_key_valid():
+    return KEY_FILE.exists() and len(KEY_FILE.read_text().strip()) >= 64
+
+def load_key():
+    if not is_key_valid():
+        raise Exception("Vault key is invalid or missing.")
+    return KEY_FILE.read_text().strip()
+
+def decrypt_vault(data: str) -> str:
+    key = load_key()
+    return ''.join(chr(ord(c) ^ ord(key[i % len(key)])) for i, c in enumerate(data))
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   ROOT & SECURITY CHECKS     ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def enforce_root_lockdown():
+    if os.geteuid() != 0:
+        log_event("Root privileges NOT detected.")
+        return False
+    log_event("Root verified.")
+    return True
+
+def remove_su_binaries():
+    su_paths = ["/system/bin/su", "/system/xbin/su"]
+    for path in su_paths:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                log_event(f"Removed su binary at: {path}")
+            except Exception as e:
+                log_event(f"Error removing {path}: {e}")
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   TRUSTED NETWORK FILTERING  ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def enforce_ip_whitelist(ip: str) -> bool:
+    if ip != TRUSTED_IP:
+        log_event(f"Unauthorized IP detected: {ip}")
+        return False
+    log_event(f"Trusted IP confirmed: {ip}")
+    return True
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   LIVE AI SECURITY RESPONSE  ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def notify_sentinel_ai(alert_type: str, details: str):
+    payload = {
+        "type": alert_type,
+        "details": details,
+        "timestamp": time.time()
+    }
+    log_event(f"AI Alert → {alert_type}: {details}")
+    # AI integration hook point (offline or direct LLM bridge)
+
+### ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+### ┃   SYSTEM CORE INITIALIZER    ┃
+### ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+def sentinel_init():
+    print("🛡️  Initializing OmniGate Sentinel Core...")
+    if not enforce_root_lockdown():
+        notify_sentinel_ai("root_mismatch", "Sentinel not running as root.")
+        return
+
+    if not is_key_valid():
+        notify_sentinel_ai("key_missing", "Vault key is invalid or corrupt.")
+        return
+
+    log_event("Sentinel Core Secure")
+    remove_su_binaries()
+    notify_sentinel_ai("startup", "Sentinel initialized and secure.")
+
+# Trigger start
+if __name__ == "__main__":
+    sentinel_init()
